@@ -24,12 +24,19 @@ import InventoryView from './components/InventoryView';
 import SettingsView from './components/SettingsView';
 import ClinicalCareView from './components/ClinicalCareView';
 import ReportsView from './components/ReportsView';
+import LoginView from './components/LoginView';
+import ClinicSetupView from './components/ClinicSetupView';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewState>(ViewState.DASHBOARD);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [autoOpenAgendaModal, setAutoOpenAgendaModal] = useState(false);
+
+  // Estados de Autenticação e Onboarding
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isClinicConfigured, setIsClinicConfigured] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
 
   const navigation = [
     { id: ViewState.DASHBOARD, name: 'Dashboard', icon: LayoutDashboard },
@@ -50,6 +57,33 @@ const App: React.FC = () => {
     setAutoOpenAgendaModal(openModal);
     setActiveView(ViewState.AGENDA);
   };
+
+  const handleLogin = (data: any) => {
+    setUserData(data);
+    setIsAuthenticated(true);
+  };
+
+  const handleClinicSetup = (data: any) => {
+    console.log('Clínica configurada:', data);
+    // Persiste que a clínica foi configurada
+    setIsClinicConfigured(true);
+    // Redireciona para login como solicitado (encerrando a sessão temporária de setup)
+    setIsAuthenticated(false);
+    setUserData(null);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setUserData(null);
+  };
+
+  if (!isAuthenticated) {
+    return <LoginView onLogin={handleLogin} />;
+  }
+
+  if (!isClinicConfigured) {
+    return <ClinicSetupView onComplete={handleClinicSetup} />;
+  }
 
   const renderContent = () => {
     switch (activeView) {
@@ -87,16 +121,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-slate-50">
-      {/* Mobile Menu Overlay */}
-      {!isSidebarOpen && (
-        <button 
-          onClick={() => setIsSidebarOpen(true)}
-          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-md shadow-md"
-        >
-          <Menu className="w-6 h-6 text-slate-600" />
-        </button>
-      )}
-
       {/* Sidebar */}
       <aside className={`
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -137,7 +161,10 @@ const App: React.FC = () => {
           </nav>
 
           <div className="p-4 border-t border-slate-200">
-            <button className="flex items-center w-full gap-3 px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors">
+            <button 
+              onClick={handleLogout}
+              className="flex items-center w-full gap-3 px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
               <LogOut className="w-5 h-5" />
               Sair do Sistema
             </button>
@@ -147,14 +174,13 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4 flex-1 max-w-xl">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <div className="relative w-full text-slate-400 focus-within:text-blue-500 transition-colors">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
               <input 
                 type="text" 
-                placeholder="Buscar pacientes, prontuários, procedimentos..." 
+                placeholder="Buscar pacientes, prontuários..." 
                 className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-blue-500 transition-all"
               />
             </div>
@@ -167,15 +193,14 @@ const App: React.FC = () => {
             <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-sm font-semibold text-slate-800">Dr. Ricardo Silva</p>
-                <p className="text-xs text-slate-500">Cirurgião Dentista</p>
+                <p className="text-sm font-semibold text-slate-800">{userData?.name || 'Dr. Ricardo'}</p>
+                <p className="text-xs text-slate-500">Administrador</p>
               </div>
-              <img src="https://picsum.photos/seed/doctor/100/100" className="w-10 h-10 rounded-full border border-slate-200" alt="Avatar" />
+              <img src="https://picsum.photos/seed/dentist/100/100" className="w-10 h-10 rounded-full border border-slate-200" alt="Avatar" />
             </div>
           </div>
         </header>
 
-        {/* Dynamic Content */}
         <div className="flex-1 overflow-y-auto p-8">
           {renderContent()}
         </div>

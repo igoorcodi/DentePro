@@ -10,8 +10,19 @@ import {
   Clock,
   Calendar as CalendarIcon,
   Activity,
-  UserCheck
+  UserCheck,
+  Check
 } from 'lucide-react';
+
+interface AppointmentEntry {
+  hour: number;
+  patient: string;
+  type: string;
+  color: string;
+  professional: string;
+  date: string;
+  time: string;
+}
 
 interface AgendaViewProps {
   initialOpenModal?: boolean;
@@ -21,7 +32,14 @@ interface AgendaViewProps {
 const AgendaView: React.FC<AgendaViewProps> = ({ initialOpenModal, onModalClosed }) => {
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [isModalOpen, setIsModalOpen] = useState(initialOpenModal || false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const timeSlots = Array.from({ length: 11 }, (_, i) => i + 8); // 8am to 6pm
+
+  const [appointments, setAppointments] = useState<AppointmentEntry[]>([
+    { hour: 9, time: '09:00', patient: 'Felipe Amorim', type: 'Extração', color: 'bg-rose-100 border-rose-200 text-rose-700', professional: 'Dr. Ricardo Silva', date: new Date().toISOString().split('T')[0] },
+    { hour: 11, time: '11:00', patient: 'Beatriz Costa', type: 'Ortodontia', color: 'bg-blue-100 border-blue-200 text-blue-700', professional: 'Dra. Luiza Souza', date: new Date().toISOString().split('T')[0] },
+    { hour: 14, time: '14:00', patient: 'Lucas Viana', type: 'Limpeza', color: 'bg-emerald-100 border-emerald-200 text-emerald-700', professional: 'Dr. Andre Marques', date: new Date().toISOString().split('T')[0] },
+  ]);
 
   const [formData, setFormData] = useState({
     patient: '',
@@ -35,22 +53,45 @@ const AgendaView: React.FC<AgendaViewProps> = ({ initialOpenModal, onModalClosed
     if (initialOpenModal) setIsModalOpen(true);
   }, [initialOpenModal]);
 
-  const appointments = [
-    { hour: 9, patient: 'Felipe Amorim', type: 'Extração', color: 'bg-rose-100 border-rose-200 text-rose-700' },
-    { hour: 11, patient: 'Beatriz Costa', type: 'Ortodontia', color: 'bg-blue-100 border-blue-200 text-blue-700' },
-    { hour: 14, patient: 'Lucas Viana', type: 'Limpeza', color: 'bg-emerald-100 border-emerald-200 text-emerald-700' },
-  ];
-
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setIsSuccess(false);
     if (onModalClosed) onModalClosed();
   };
 
   const handleSaveAppointment = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulação de salvamento
-    alert(`Agendamento confirmado para ${formData.patient} em ${formData.date} às ${formData.time}`);
-    handleCloseModal();
+    
+    const [hourStr] = formData.time.split(':');
+    const hour = parseInt(hourStr, 10);
+
+    const newApp: AppointmentEntry = {
+      hour,
+      time: formData.time,
+      patient: formData.patient,
+      type: formData.procedure,
+      professional: formData.professional,
+      date: formData.date,
+      // Atribuir cor baseada no profissional
+      color: formData.professional.includes('Ricardo') ? 'bg-blue-100 border-blue-200 text-blue-700' :
+             formData.professional.includes('Luiza') ? 'bg-purple-100 border-purple-200 text-purple-700' :
+             'bg-orange-100 border-orange-200 text-orange-700'
+    };
+
+    setIsSuccess(true);
+    
+    // Pequeno delay para mostrar o estado de sucesso antes de fechar
+    setTimeout(() => {
+      setAppointments(prev => [...prev, newApp]);
+      handleCloseModal();
+      setFormData({
+        patient: '',
+        professional: 'Dr. Ricardo Silva',
+        procedure: '',
+        date: new Date().toISOString().split('T')[0],
+        time: '09:00'
+      });
+    }, 1000);
   };
 
   return (
@@ -122,36 +163,38 @@ const AgendaView: React.FC<AgendaViewProps> = ({ initialOpenModal, onModalClosed
           {viewMode === 'day' ? (
             <div className="relative min-w-[600px]">
               {timeSlots.map(hour => {
-                const appointment = appointments.find(a => a.hour === hour);
+                const hourAppointments = appointments.filter(a => a.hour === hour);
                 return (
                   <div key={hour} className="flex border-b border-slate-50 group min-h-[90px]">
                     <div className="w-20 py-4 px-4 text-right border-r border-slate-50 shrink-0">
                       <span className="text-xs font-bold text-slate-400">{hour}:00</span>
                     </div>
-                    <div className="flex-1 p-2 relative">
-                      {appointment ? (
-                        <div className={`
-                          ${appointment.color} 
-                          h-full p-4 rounded-xl border-l-4 shadow-sm flex items-center justify-between
-                          animate-in zoom-in-95 duration-300 group-hover:scale-[1.01] transition-transform
-                        `}>
-                          <div className="flex items-center gap-4">
-                            <div className="bg-white/50 p-2 rounded-full shadow-sm">
-                              <User className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-black leading-none mb-1">{appointment.patient}</p>
-                              <div className="flex items-center gap-2 opacity-80">
-                                <span className="text-[10px] font-bold uppercase tracking-wider">{appointment.type}</span>
-                                <span className="text-slate-400">•</span>
-                                <span className="text-[10px] font-bold">Dr. Ricardo</span>
+                    <div className="flex-1 p-2 relative flex flex-col gap-2">
+                      {hourAppointments.length > 0 ? (
+                        hourAppointments.map((app, idx) => (
+                          <div key={idx} className={`
+                            ${app.color} 
+                            min-h-[70px] p-4 rounded-xl border-l-4 shadow-sm flex items-center justify-between
+                            animate-in zoom-in-95 duration-300 group-hover:scale-[1.01] transition-transform
+                          `}>
+                            <div className="flex items-center gap-4">
+                              <div className="bg-white/50 p-2 rounded-full shadow-sm">
+                                <User className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-black leading-none mb-1">{app.patient}</p>
+                                <div className="flex items-center gap-2 opacity-80">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider">{app.type}</span>
+                                  <span className="text-slate-400">•</span>
+                                  <span className="text-[10px] font-bold">{app.professional}</span>
+                                </div>
                               </div>
                             </div>
+                            <button className="p-2 hover:bg-black/5 rounded-lg transition-colors">
+                              <MoreHorizontal className="w-5 h-5" />
+                            </button>
                           </div>
-                          <button className="p-2 hover:bg-black/5 rounded-lg transition-colors">
-                            <MoreHorizontal className="w-5 h-5" />
-                          </button>
-                        </div>
+                        ))
                       ) : (
                         <div 
                           onClick={() => {
@@ -206,100 +249,112 @@ const AgendaView: React.FC<AgendaViewProps> = ({ initialOpenModal, onModalClosed
             </div>
 
             <form onSubmit={handleSaveAppointment} className="p-8 space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Paciente</label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input 
-                      required
-                      type="text" 
-                      placeholder="Busque pelo nome ou CPF..."
-                      value={formData.patient}
-                      onChange={(e) => setFormData({...formData, patient: e.target.value})}
-                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all text-sm font-medium"
-                    />
+              {isSuccess ? (
+                <div className="flex flex-col items-center justify-center py-12 animate-in zoom-in-95">
+                  <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
+                    <Check className="w-10 h-10" />
                   </div>
+                  <h4 className="text-2xl font-black text-slate-800">Agendado com Sucesso!</h4>
+                  <p className="text-slate-500 mt-2">O horário foi reservado e confirmado.</p>
                 </div>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Paciente</label>
+                      <div className="relative">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input 
+                          required
+                          type="text" 
+                          placeholder="Busque pelo nome ou CPF..."
+                          value={formData.patient}
+                          onChange={(e) => setFormData({...formData, patient: e.target.value})}
+                          className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all text-sm font-medium"
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Data</label>
-                    <div className="relative">
-                      <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input 
-                        required
-                        type="date" 
-                        value={formData.date}
-                        onChange={(e) => setFormData({...formData, date: e.target.value})}
-                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Data</label>
+                        <div className="relative">
+                          <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input 
+                            required
+                            type="date" 
+                            value={formData.date}
+                            onChange={(e) => setFormData({...formData, date: e.target.value})}
+                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Horário</label>
+                        <div className="relative">
+                          <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <select 
+                            value={formData.time}
+                            onChange={(e) => setFormData({...formData, time: e.target.value})}
+                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium appearance-none"
+                          >
+                            {timeSlots.map(h => (
+                              <option key={h} value={`${h < 10 ? '0'+h : h}:00`}>{h}:00</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Procedimento Principal</label>
+                      <div className="relative">
+                        <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input 
+                          required
+                          type="text" 
+                          placeholder="Ex: Canal, Limpeza, Avaliação..."
+                          value={formData.procedure}
+                          onChange={(e) => setFormData({...formData, procedure: e.target.value})}
+                          className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Profissional Responsável</label>
+                      <div className="relative">
+                        <UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <select 
+                          value={formData.professional}
+                          onChange={(e) => setFormData({...formData, professional: e.target.value})}
+                          className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium appearance-none"
+                        >
+                          <option>Dr. Ricardo Silva</option>
+                          <option>Dra. Luiza Souza</option>
+                          <option>Dr. Andre Marques</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Horário</label>
-                    <div className="relative">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <select 
-                        value={formData.time}
-                        onChange={(e) => setFormData({...formData, time: e.target.value})}
-                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium appearance-none"
-                      >
-                        {timeSlots.map(h => (
-                          <option key={h} value={`${h < 10 ? '0'+h : h}:00`}>{h}:00</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Procedimento Principal</label>
-                  <div className="relative">
-                    <Activity className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input 
-                      required
-                      type="text" 
-                      placeholder="Ex: Canal, Limpeza, Avaliação..."
-                      value={formData.procedure}
-                      onChange={(e) => setFormData({...formData, procedure: e.target.value})}
-                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Profissional Responsável</label>
-                  <div className="relative">
-                    <UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <select 
-                      value={formData.professional}
-                      onChange={(e) => setFormData({...formData, professional: e.target.value})}
-                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium appearance-none"
+                  <div className="pt-6 flex gap-4">
+                    <button 
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="flex-1 py-4 text-sm font-bold text-slate-500 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
                     >
-                      <option>Dr. Ricardo Silva</option>
-                      <option>Dra. Luiza Souza</option>
-                      <option>Dr. Andre Marques</option>
-                    </select>
+                      Cancelar
+                    </button>
+                    <button 
+                      type="submit"
+                      className="flex-1 py-4 text-sm font-bold text-white bg-blue-600 rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all active:scale-95"
+                    >
+                      Confirmar Agendamento
+                    </button>
                   </div>
-                </div>
-              </div>
-
-              <div className="pt-6 flex gap-4">
-                <button 
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="flex-1 py-4 text-sm font-bold text-slate-500 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 py-4 text-sm font-bold text-white bg-blue-600 rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all active:scale-95"
-                >
-                  Confirmar Agendamento
-                </button>
-              </div>
+                </>
+              )}
             </form>
           </div>
         </div>

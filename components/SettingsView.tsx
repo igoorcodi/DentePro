@@ -34,19 +34,58 @@ import {
   LayoutGrid,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  User,
+  ShieldCheck,
+  UserCog,
+  Key,
+  RefreshCw,
+  Fingerprint
 } from 'lucide-react';
 
 type SettingsSection = 'main' | 'clinic' | 'users' | 'subscription' | 'notifications' | 'whatsapp' | 'procedures' | 'chart_of_accounts';
 type SubscriptionSubView = 'overview' | 'plans' | 'card' | 'invoices';
 type AccountsTab = 'receitas' | 'despesas' | 'dre';
 
+interface AppUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  access: 'Master' | 'Clínico' | 'Recepção';
+  status: 'Ativo' | 'Inativo' | 'Férias';
+}
+
+const INITIAL_USERS: AppUser[] = [
+  { id: '1', name: 'Dr. Ricardo Silva', email: 'ricardo@dentepro.com', role: 'Proprietário', access: 'Master', status: 'Ativo' },
+  { id: '2', name: 'Dra. Luiza Souza', email: 'luiza@dentepro.com', role: 'Ortodontista', access: 'Clínico', status: 'Ativo' },
+  { id: '3', name: 'Carla Pereira', email: 'carla@dentepro.com', role: 'Recepcionista', access: 'Recepção', status: 'Ativo' },
+  { id: '4', name: 'Dr. Andre Marques', email: 'andre@dentepro.com', role: 'Implantodontista', access: 'Clínico', status: 'Férias' },
+];
+
 const SettingsView: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SettingsSection>('main');
   const [subView, setSubView] = useState<SubscriptionSubView>('overview');
   const [activeAccountsTab, setActiveAccountsTab] = useState<AccountsTab>('receitas');
 
-  // Dados mockados para o Plano de Contas
+  // --- Estados de Usuários ---
+  const [users, setUsers] = useState<AppUser[]>(INITIAL_USERS);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<AppUser | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [recoverySent, setRecoverySent] = useState(false);
+  
+  const [userFormData, setUserFormData] = useState({
+    name: '',
+    email: '',
+    role: '',
+    access: 'Clínico' as AppUser['access'],
+    status: 'Ativo' as AppUser['status'],
+    password: '',
+    confirmPassword: ''
+  });
+
+  // --- Estados do Plano de Contas ---
   const [receitasDiversas, setReceitasDiversas] = useState(['Rendimentos financeiros', 'Outras receitas']);
   const [receitasVendas, setReceitasVendas] = useState(['Venda de produtos/serviços']);
 
@@ -70,6 +109,70 @@ const SettingsView: React.FC = () => {
     { id: 'chart_of_accounts', title: 'Plano de Contas', icon: ListTree, desc: 'Configurar categorias financeiras e DRE.' },
     { id: 'subscription', title: 'Assinatura', icon: CreditCard, desc: 'Faturas e plano DentePro.' },
   ];
+
+  // --- Lógica de Usuários ---
+  const handleOpenUserModal = (user: AppUser | null = null) => {
+    setRecoverySent(false);
+    if (user) {
+      setEditingUser(user);
+      setUserFormData({
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        access: user.access,
+        status: user.status,
+        password: '',
+        confirmPassword: ''
+      });
+    } else {
+      setEditingUser(null);
+      setUserFormData({
+        name: '',
+        email: '',
+        role: '',
+        access: 'Clínico',
+        status: 'Ativo',
+        password: '',
+        confirmPassword: ''
+      });
+    }
+    setIsUserModalOpen(true);
+  };
+
+  const handleSaveUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (userFormData.password !== userFormData.confirmPassword) {
+      alert("As senhas não coincidem!");
+      return;
+    }
+
+    if (editingUser) {
+      setUsers(users.map(u => u.id === editingUser.id ? { ...u, 
+        name: userFormData.name,
+        email: userFormData.email,
+        role: userFormData.role,
+        access: userFormData.access,
+        status: userFormData.status
+      } : u));
+    } else {
+      const newUser: AppUser = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: userFormData.name,
+        email: userFormData.email,
+        role: userFormData.role,
+        access: userFormData.access,
+        status: userFormData.status
+      };
+      setUsers([...users, newUser]);
+    }
+    setIsUserModalOpen(false);
+  };
+
+  const handleRecoverPassword = () => {
+    setRecoverySent(true);
+    setTimeout(() => setRecoverySent(false), 5000);
+  };
 
   // --- Helpers de Validação de Cartão ---
   const validateLuhn = (number: string) => {
@@ -164,7 +267,7 @@ const SettingsView: React.FC = () => {
                 <div className="h-8 flex items-center justify-end mt-1">
                   {cardBrand === 'visa' && <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" className="h-4 brightness-0 invert" alt="Visa" />}
                   {cardBrand === 'mastercard' && <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" className="h-8" alt="Mastercard" />}
-                  {cardBrand === 'unknown' && <CreditCard className="w-6 h-6 opacity-30" />}
+                  {cardBrand === 'unknown' && <CardIcon className="w-6 h-6 opacity-30" />}
                 </div>
               </div>
             </div>
@@ -606,7 +709,10 @@ const SettingsView: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
             <h3 className="font-bold text-slate-800">Equipe da Clínica</h3>
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-md active:scale-95">
+            <button 
+              onClick={() => handleOpenUserModal()}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-md active:scale-95"
+            >
               <UserPlus className="w-4 h-4" />
               Adicionar Usuário
             </button>
@@ -623,13 +729,8 @@ const SettingsView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {[
-                  { name: 'Dr. Ricardo Silva', email: 'ricardo@dentepro.com', role: 'Proprietário', access: 'Master', status: 'Ativo' },
-                  { name: 'Dra. Luiza Souza', email: 'luiza@dentepro.com', role: 'Ortodontista', access: 'Clínico', status: 'Ativo' },
-                  { name: 'Carla Pereira', email: 'carla@dentepro.com', role: 'Recepcionista', access: 'Recepção', status: 'Ativo' },
-                  { name: 'Dr. Andre Marques', email: 'andre@dentepro.com', role: 'Implantodontista', access: 'Clínico', status: 'Férias' },
-                ].map((user, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs">
@@ -652,15 +753,23 @@ const SettingsView: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase ${
-                        user.status === 'Ativo' ? 'text-emerald-600' : 'text-amber-600'
+                        user.status === 'Ativo' ? 'text-emerald-600' : 
+                        user.status === 'Férias' ? 'text-amber-600' : 'text-rose-600'
                       }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${user.status === 'Ativo' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                        <div className={`w-1.5 h-1.5 rounded-full ${
+                          user.status === 'Ativo' ? 'bg-emerald-500' : 
+                          user.status === 'Férias' ? 'bg-amber-500' : 'bg-rose-500'
+                        }`}></div>
                         {user.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 text-slate-400 hover:text-slate-600">
-                        <ChevronRight className="w-4 h-4" />
+                      <button 
+                        onClick={() => handleOpenUserModal(user)}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        title="Editar Usuário"
+                      >
+                        <UserCog className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
@@ -670,6 +779,186 @@ const SettingsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Usuário Expandido com Login e Segurança */}
+      {isUserModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-100">
+                  <UserPlus className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800">
+                    {editingUser ? 'Gestão de Usuário' : 'Novo Membro da Equipe'}
+                  </h3>
+                  <p className="text-xs text-slate-500">Perfil, permissões e segurança de acesso.</p>
+                </div>
+              </div>
+              <button onClick={() => setIsUserModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto max-h-[70vh]">
+              <form onSubmit={handleSaveUser} className="p-8 space-y-8">
+                {/* Seção 1: Dados Básicos */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2 text-slate-400">
+                    <User className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Identificação e Perfil</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="col-span-1 md:col-span-2">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome Completo</label>
+                      <input 
+                        required type="text"
+                        value={userFormData.name}
+                        onChange={(e) => setUserFormData({...userFormData, name: e.target.value})}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Cargo / Função</label>
+                      <input 
+                        required type="text" placeholder="Ex: Ortodontista"
+                        value={userFormData.role}
+                        onChange={(e) => setUserFormData({...userFormData, role: e.target.value})}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Status na Clínica</label>
+                      <select 
+                        value={userFormData.status}
+                        onChange={(e) => setUserFormData({...userFormData, status: e.target.value as AppUser['status']})}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl appearance-none outline-none text-sm font-medium"
+                      >
+                        <option value="Ativo">Ativo</option>
+                        <option value="Inativo">Inativo</option>
+                        <option value="Férias">Férias</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Seção 2: Login e Segurança */}
+                <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 space-y-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <Lock className="w-4 h-4" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Login e Segurança de Acesso</span>
+                    </div>
+                    {editingUser && (
+                      <button 
+                        type="button"
+                        onClick={handleRecoverPassword}
+                        className={`text-[10px] font-black uppercase flex items-center gap-1.5 transition-all ${recoverySent ? 'text-emerald-500' : 'text-blue-500 hover:text-blue-700'}`}
+                      >
+                        {recoverySent ? <CheckCircle2 className="w-3 h-3" /> : <RefreshCw className="w-3 h-3" />}
+                        {recoverySent ? 'Link Enviado!' : 'Enviar Link de Recuperação'}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="col-span-1 md:col-span-2">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">E-mail de Login (Único)</label>
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                        <input 
+                          required type="email"
+                          value={userFormData.email}
+                          onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
+                          className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nível de Acesso</label>
+                      <div className="relative">
+                        <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                        <select 
+                          value={userFormData.access}
+                          onChange={(e) => setUserFormData({...userFormData, access: e.target.value as AppUser['access']})}
+                          className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl appearance-none outline-none text-sm font-medium"
+                        >
+                          <option value="Master">Master (Acesso Total)</option>
+                          <option value="Clínico">Clínico (Agenda e Prontuários)</option>
+                          <option value="Recepção">Recepção (Agenda e Cadastro)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="hidden md:block"></div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                        {editingUser ? 'Alterar Senha' : 'Senha Inicial'}
+                      </label>
+                      <div className="relative">
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                        <input 
+                          type={showPassword ? "text" : "password"}
+                          value={userFormData.password}
+                          onChange={(e) => setUserFormData({...userFormData, password: e.target.value})}
+                          placeholder={editingUser ? "Deixe em branco para manter" : "*******"}
+                          className="w-full pl-12 pr-12 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium"
+                        />
+                        <button 
+                          type="button" onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-slate-600"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Confirmar Senha</label>
+                      <div className="relative">
+                        <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                        <input 
+                          type={showPassword ? "text" : "password"}
+                          value={userFormData.confirmPassword}
+                          onChange={(e) => setUserFormData({...userFormData, confirmPassword: e.target.value})}
+                          placeholder="*******"
+                          className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none text-sm font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                    <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-blue-700/80 leading-relaxed font-medium">
+                      Políticas de Senha: Mínimo 8 caracteres, incluindo letras maiúsculas e números. Para segurança, os usuários são deslogados após 30 dias de inatividade.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    type="button" onClick={() => setIsUserModalOpen(false)}
+                    className="flex-1 py-4 text-sm font-bold text-slate-500 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 py-4 text-sm font-bold text-white bg-blue-600 rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {editingUser ? 'Atualizar Registro' : 'Efetivar Cadastro'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
