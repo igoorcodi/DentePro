@@ -1,0 +1,7 @@
+{
+  "name": "DentePro",
+  "description": "A comprehensive ERP for dental clinics featuring scheduling, digital clinical records, odontogram, financial management, and AI-powered insights.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
